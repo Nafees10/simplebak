@@ -1,8 +1,64 @@
 ﻿module bak;
 
 import sdlang;
+import utils.misc;
 import std.file;
 import std.path;
+import std.datetime;
+import std.conv : to;
+
+/// struct to make backups
+struct BakMan{
+	/// returns the date the last backup was done
+	static SysTime lastBackupDate(string filePath){
+		string backupDir = filePath.dirName~"/backups";
+		string fName = baseName(filePath);
+		string[] files = listdir(backupDir~'/');
+		// they're stored like: bakName.1.tar.gz, bakName.2.tar.gz .. where 2 is newer than 1
+		// get latest
+		uinteger minNameLength = fName.length+9; // fName.length+".X.tar.gz"
+		// the date modified of the latest backup
+		SysTime latestDate;
+		uinteger latestCount = 0;
+		foreach(bakFile; files){
+			if (bakFile.length >= minNameLength && bakFile[0 .. fName.length] == fName &&
+				bakFile[bakFile.length-7 .. bakFile.length] == ".tar.gz"){
+				string count = bakFile[fName.length+1 .. bakFile.length-7];
+				if (count.isNum){
+					// ok, this is a backup
+					if (to!uinteger(count) > latestCount){
+						latestDate = timeLastModified(backupDir~'/'~bakFile);
+						latestCount = to!uinteger(count);
+					}
+				}
+			}
+		}
+		return latestDate;
+	}
+
+	/// returns the relative file path of the latest backups
+
+	/// returns true if a file/any-file-in-a-dir was modified after a data/time
+	static bool hasModified(string filePath, SysTime backupDate){
+		string backupDir = filePath.dirName~"/backups";
+		// now check if any file in that dir, or if it is a file, then if it's been modified after backup, then make another
+		if (filePath.isDir){
+			// recursion for all the files
+			string[] dirFiles = listdir(filePath);
+			foreach (file; dirFiles){
+				if (hasModified(file, backupDate)){
+					return true;
+				}
+			}
+			return false;
+		}else{
+			if (timeLastModified(filePath) > backupDate){
+				return true;
+			}
+			return false;
+		}
+	}
+}
 
 /// struct to read config from SDL file
 struct ConfigFile{
@@ -109,4 +165,19 @@ struct ConfigFile{
 			saveConfig(filename);
 		}
 	}
+}
+
+/// returns array containing file names in a dir
+/// 
+/// taken from: https://dlang.org/library/std/file/dir_entries.html
+string[] listdir(string pathname){
+	import std.algorithm;
+	import std.array;
+	import std.file;
+	import std.path;
+	
+	return std.file.dirEntries(pathname, SpanMode.shallow)
+		.filter!(a => a.isFile)
+			.map!(a => std.path.baseName(a.name))
+			.array;
 }
