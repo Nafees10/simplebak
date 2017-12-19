@@ -37,6 +37,31 @@ struct BakMan{
 	}
 
 	/// returns the relative file path of the latest backups
+	static string latestBackup(string filePath){
+		string backupDir = filePath.dirName~"/backups";
+		string fName = baseName(filePath);
+		string[] files = listdir(backupDir~'/');
+		// they're stored like: bakName.1.tar.gz, bakName.2.tar.gz .. where 2 is newer than 1
+		// get latest
+		uinteger minNameLength = fName.length+9; // fName.length+".X.tar.gz"
+		// the date modified of the latest backup
+		string latestName;
+		uinteger latestCount = 0;
+		foreach(bakFile; files){
+			if (bakFile.length >= minNameLength && bakFile[0 .. fName.length] == fName &&
+				bakFile[bakFile.length-7 .. bakFile.length] == ".tar.gz"){
+				string count = bakFile[fName.length+1 .. bakFile.length-7];
+				if (count.isNum){
+					// ok, this is a backup
+					if (to!uinteger(count) > latestCount){
+						latestName = bakFile;
+						latestCount = to!uinteger(count);
+					}
+				}
+			}
+		}
+		return latestName;
+	}
 
 	/// returns true if a file/any-file-in-a-dir was modified after a data/time
 	static bool hasModified(string filePath, SysTime backupDate){
