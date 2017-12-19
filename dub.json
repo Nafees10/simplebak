@@ -1,0 +1,13 @@
+{
+	"name": "simplebak",
+	"authors": [
+		"Nafees"
+	],
+	"dependencies": {
+		"utils": "~>0.1.7",
+		"sdlang-d": "~>0.10.1"
+	},
+	"description": "A simple backup program",
+	"copyright": "Copyright © 2017, Nafees",
+	"license": "MIT"
+}
