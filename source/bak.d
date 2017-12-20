@@ -7,8 +7,38 @@ import std.path;
 import std.datetime;
 import std.conv : to;
 
+private const BACKUP_EXTENSION = ".tar.gz";
+
 /// struct to make backups
 struct BakMan{
+	/// reads a filename of a backup file, separating the name, count, and extension.
+	/// 
+	/// returns [name, count, extension], or ["","",""] if it's not a backup filename
+	static string[3] readBackupFilename(string backupFile){
+		string[3] r;
+		// the ending must be ".tar.gz", and the format is: "F.X.tar.gz"
+		if (backupFile.length < BACKUP_EXTENSION.length+2){
+			return ["","",""];
+		}
+		r[2] = backupFile[backupFile.length-BACKUP_EXTENSION.length .. backupFile.length].dup;
+		if (r[2] != BACKUP_EXTENSION){
+			return ["","",""];
+		}
+		backupFile.length -= BACKUP_EXTENSION.length;
+		// read the count
+		foreach_reverse(i, c; backupFile){
+			if (c == '.'){
+				r[1] = backupFile[c+1 .. backupFile.length];
+				break;
+			}
+		}
+		if (r[1].length == 0){
+			return ["","",""];
+		}
+		// remove the count, and its dot
+		r[0] = backupFile[0 .. backupFile.length-(r[1].length+1)];
+		return r;
+	}
 	/// returns the date the last backup was done
 	static SysTime lastBackupDate(string filePath){
 		string backupDir = filePath.dirName~"/backups";
@@ -16,19 +46,18 @@ struct BakMan{
 		string[] files = listdir(backupDir~'/');
 		// they're stored like: bakName.1.tar.gz, bakName.2.tar.gz .. where 2 is newer than 1
 		// get latest
-		uinteger minNameLength = fName.length+9; // fName.length+".X.tar.gz"
+		uinteger minNameLength = fName.length+BACKUP_EXTENSION.length+2; // fName.length+".X"+extension
 		// the date modified of the latest backup
 		SysTime latestDate;
 		uinteger latestCount = 0;
 		foreach(bakFile; files){
-			if (bakFile.length >= minNameLength && bakFile[0 .. fName.length] == fName &&
-				bakFile[bakFile.length-7 .. bakFile.length] == ".tar.gz"){
-				string count = bakFile[fName.length+1 .. bakFile.length-7];
-				if (count.isNum){
+			string[3] processedName = readBackupFilename(bakFile);
+			if (processedName[0] == fName && processedName[2] == BACKUP_EXTENSION){
+				if (processedName[1].isNum){
 					// ok, this is a backup
-					if (to!uinteger(count) > latestCount){
+					if (to!uinteger(processedName[1]) > latestCount){
 						latestDate = timeLastModified(backupDir~'/'~bakFile);
-						latestCount = to!uinteger(count);
+						latestCount = to!uinteger(processedName[1]);
 					}
 				}
 			}
@@ -43,19 +72,18 @@ struct BakMan{
 		string[] files = listdir(backupDir~'/');
 		// they're stored like: bakName.1.tar.gz, bakName.2.tar.gz .. where 2 is newer than 1
 		// get latest
-		uinteger minNameLength = fName.length+9; // fName.length+".X.tar.gz"
+		uinteger minNameLength = fName.length+BACKUP_EXTENSION.length+2; // fName.length+".X"+extension
 		// the date modified of the latest backup
 		string latestName;
 		uinteger latestCount = 0;
 		foreach(bakFile; files){
-			if (bakFile.length >= minNameLength && bakFile[0 .. fName.length] == fName &&
-				bakFile[bakFile.length-7 .. bakFile.length] == ".tar.gz"){
-				string count = bakFile[fName.length+1 .. bakFile.length-7];
-				if (count.isNum){
+			string[3] processedName = readBackupFilename(bakFile);
+			if (processedName[0] == fName && processedName[2] == BACKUP_EXTENSION){
+				if (processedName[1].isNum){
 					// ok, this is a backup
-					if (to!uinteger(count) > latestCount){
+					if (to!uinteger(processedName[1]) > latestCount){
 						latestName = bakFile;
-						latestCount = to!uinteger(count);
+						latestCount = to!uinteger(processedName[1]);
 					}
 				}
 			}
@@ -65,13 +93,13 @@ struct BakMan{
 
 	/// returns true if a file/any-file-in-a-dir was modified after a data/time
 	static bool hasModified(string filePath, SysTime backupDate){
-		string backupDir = filePath.dirName~"/backups";
 		// now check if any file in that dir, or if it is a file, then if it's been modified after backup, then make another
 		if (filePath.isDir){
+			string path = filePath.dirName~'/';
 			// recursion for all the files
 			string[] dirFiles = listdir(filePath);
 			foreach (file; dirFiles){
-				if (hasModified(file, backupDate)){
+				if (hasModified(path~file, backupDate)){
 					return true;
 				}
 			}
@@ -82,6 +110,41 @@ struct BakMan{
 			}
 			return false;
 		}
+	}
+
+	/// makes backup of a file/dir
+	/// 
+	/// returns true on success, false on failure.
+	static bool makeBackup(string filePath, ConfigFile conf){
+		import std.process;
+		// get the filename of the new backup file
+		string bakFilename = latestBackup(filePath);
+		// add one to the count of the latest backup, or make new name if none exists
+		if (bakFilename.length == 0){
+			bakFilename = baseName(filePath)~".0"~BACKUP_EXTENSION;
+		}else{
+			string[3] processedName = readBackupFilename(bakFilename);
+			processedName[1] = to!string(to!uinteger(processedName[1])+1);
+		}
+		// execute the "before-backup" shell command
+		if (conf.backupStartCommand != ""){
+			executeShell(conf.backupStartCommand);
+		}
+		// now to make the backup
+		auto result = executeShell("tar -cf 'backups/"~bakFilename~"' '"~filePath~"'");
+		// check if successful
+		if (result.status == 0){
+			// successful
+			if (conf.backupFinishCommand != ""){
+				executeShell(conf.backupFinishCommand);
+			}
+			return true;
+		}else{
+			if (conf.backupFailCommand != ""){
+				executeShell(conf.backupFailCommand);
+			}
+		}
+		return false;
 	}
 }
 
@@ -136,6 +199,17 @@ struct ConfigFile{
 		changed = true;
 		return storedBackupFinishCommand = newVal;
 	}
+	/// stores the command to execute if backup fails
+	private string storedBackupFailCommand;
+	/// shell command to execute if backup fails
+	@property string backupFailCommand(){
+		return storedBackupFailCommand;
+	}
+	/// shell command to execute if backup fails
+	@property string backupFailCommand(string newVal){
+		changed = true;
+		return storedBackupFailCommand  = newVal;
+	}
 	/// reads config from a file
 	void openConfig(string file){
 		import std.variant;
@@ -153,6 +227,8 @@ struct ConfigFile{
 		storedBackupStartCommand = rootTag.getTagValue("backupStartCommand", "");
 		// backupFinishCommand
 		storedBackupFinishCommand = rootTag.getTagValue("backupFinishCommand", "");
+		// backupFailCommand
+		storedBackupFailCommand = rootTag.getTagValue("backupFailCommand", "");
 		// done!
 		changed = false;
 		filename = file;
@@ -171,7 +247,8 @@ struct ConfigFile{
 		tags[filePaths.length .. tags.length] = [
 			new Tag(rootTag,"","overwriteExisting",[Value(overwriteExisitng)]),
 			new Tag(rootTag,"","backupStartCommand",[Value(backupStartCommand)]),
-			new Tag(rootTag,"","backupFinishCommand",[Value(backupFinishCommand)])
+			new Tag(rootTag,"","backupFinishCommand",[Value(backupFinishCommand)]),
+			new Tag(rootTag,"","backupFailCommand",[Value(backupFailCommand)])
 		];
 		// add them all to the rootTag
 		foreach (tag; tags){
