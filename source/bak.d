@@ -115,7 +115,7 @@ struct BakMan{
 	/// makes backup of a file/dir
 	/// 
 	/// returns true on success, false on failure.
-	static bool makeBackup(string filePath, ConfigFile conf){
+	static bool makeBackup(string filePath){
 		import std.process;
 		// get the filename of the new backup file
 		string bakFilename = latestBackup(filePath);
@@ -126,23 +126,12 @@ struct BakMan{
 			string[3] processedName = readBackupFilename(bakFilename);
 			processedName[1] = to!string(to!uinteger(processedName[1])+1);
 		}
-		// execute the "before-backup" shell command
-		if (conf.backupStartCommand != ""){
-			executeShell(conf.backupStartCommand);
-		}
 		// now to make the backup
 		auto result = executeShell("tar -cf 'backups/"~bakFilename~"' '"~filePath~"'");
 		// check if successful
 		if (result.status == 0){
 			// successful
-			if (conf.backupFinishCommand != ""){
-				executeShell(conf.backupFinishCommand);
-			}
 			return true;
-		}else{
-			if (conf.backupFailCommand != ""){
-				executeShell(conf.backupFailCommand);
-			}
 		}
 		return false;
 	}
