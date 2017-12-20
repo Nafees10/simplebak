@@ -1,6 +1,10 @@
 import std.stdio;
+import std.path;
+import std.file;
+import bak;
 
 const VERSION = "0.1.0";
+const CONF_PATH = "~/.config/simplebak/conf.sdl";
 
 /*
 Args format:
@@ -27,14 +31,34 @@ Run without any command to start make backup of all added files/dirs\n"
 				);
 		}else if (args[1] == "version"){
 			writeln (VERSION);
-		}else if (args[1] == "add"){
-			// check if file exists
-			// TODO implement add command
-		}else if (args[1] == "remove"){
-			// check if it exists in the tobak.sdl
-			// TODO implement remove command
 		}else{
-			writeln (args[1], "is not a valid command.\nType 'simplebak help' for list of available commands");
+			// load the conf file
+			ConfigFile conf;
+			conf.openConfig(expandTilde(CONF_PATH));
+			if (args[1] == "add"){
+				// check if file exists
+				// check if is valid path
+				if (args.length < 3){
+					writeln ("No file/dir specified to add to backups");
+				}else{
+					if (!args[2].isValidFilename){
+						writeln ("Invalid filename specified");
+					}else if (!args[2].exists){
+						writeln ("Filename specified does not exist");
+					}else{
+						// now just add it
+						conf.filePaths = conf.filePaths ~ args[2];
+						writeln (baseName(args[2])~" added");
+					}
+				}
+			}else if (args[1] == "remove"){
+				// check if it exists in the tobak.sdl
+				// TODO implement remove command
+			}else{
+				writeln (args[1], "is not a valid command.\nType 'simplebak help' for list of available commands");
+			}
+			// save the conf file
+			conf.saveConfig();
 		}
 	}else{
 		// TODO make backup
