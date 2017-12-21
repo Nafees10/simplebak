@@ -16,9 +16,11 @@ Args format:
 Commands:
 	add 	- adds a new file/dir for backup.
 	remove 	- removes a file/dir from list of files to make backup of.
+	backup	- makes backup of only a specified file, if needed
 	restore	- restores the last, or n-th last backup for a file, n is arg
 	help	- displays this message
 	version	- displays the version
+	list	- lists all files that are added
 */
 void main(string[] args){
 	if (args.length > 1){
@@ -29,6 +31,8 @@ void main(string[] args){
 Commands:
 \tadd     - adds a new file/dir for making backups in future
 \tremove  - removes a file/dir from list of files to make backup of
+\tbackup  - makes backup of only a specific file/dir, if modified
+\tlist    - displays list of all files/dirs to include in future backups
 \thelp    - displays this message
 \tversion - displays the version\n
 Run without any command to start make backup of all added files/dirs\n"
@@ -43,8 +47,6 @@ Run without any command to start make backup of all added files/dirs\n"
 				// check if is valid path
 				if (args.length < 3){
 					writeln ("No file/dir specified to add to backups");
-				}else if (!args[2].isValidFilename){
-					writeln ("Invalid filename specified");
 				}else if (!args[2].exists){
 					writeln ("Filename specified does not exist");
 				}else{
@@ -63,6 +65,46 @@ Run without any command to start make backup of all added files/dirs\n"
 					uinteger index = conf.filePaths.indexOf(args[2].absolutePath);
 					conf.filePaths = conf.filePaths.deleteElement(index);
 					writeln (baseName(args[2])~" removed from future backups");
+				}
+			}else if (args[1] == "backup"){
+				if (args.length < 3){
+					writeln ("No file/dir specified to make backup of");
+				}else if (conf.filePaths.indexOf(absolutePath(args[2])) < 0){
+					writeln (baseName(args[2])~" does not exist in files to make backup of.\nAdd it using 'simplebak add ...'");
+				}else if (!args[2].exists){
+					writeln ("Filename specified does not exist");
+				}else{
+					// just make the backup now
+					// execute start command
+					if (conf.backupStartCommand != ""){
+						writeln ("Executing pre-makeBackup shell command:");
+						writeln ("Command returned: ",executeShell(conf.backupStartCommand).output);
+					}
+					string fullPath = absolutePath(args[2]);
+					if (BakMan.hasModified(fullPath, BakMan.lastBackupDate(fullPath))){
+						writeln (baseName(args[2])~" has been modified, making new backup");
+						if (!BakMan.makeBackup(fullPath)){
+							writeln ("Backup failed");
+							if (conf.backupFailCommand != ""){
+								writeln ("Executing backup-fail shell command:");
+								writeln ("Command returned: ", executeShell(conf.backupFailCommand).output);
+							}
+						}else{
+							writeln ("Backup successful");
+						}
+					}else{
+						writeln (baseName(args[2])~" not modified since last backup, skipping");
+					}
+				}
+				writeln ("Backup finished");
+				// execute backup-end-command
+				if (conf.backupFinishCommand != ""){
+					writeln ("Executing backup-finish shell command:");
+					writeln ("Command returned: ", executeShell(conf.backupFinishCommand).output);
+				}
+			}else if (args[1] == "list"){
+				foreach (filePath; conf.filePaths){
+					writeln (filePath);
 				}
 			}else{
 				writeln (args[1], "is not a valid command.\nType 'simplebak help' for list of available commands");
