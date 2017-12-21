@@ -58,7 +58,7 @@ struct BakMan{
 			if (processedName[0] == fName && processedName[2] == BACKUP_EXTENSION){
 				if (processedName[1].isNum){
 					// ok, this is a backup
-					if (to!uinteger(processedName[1]) > latestCount){
+					if (to!uinteger(processedName[1]) >= latestCount){
 						latestDate = timeLastModified(backupDir~'/'~bakFile);
 						latestCount = to!uinteger(processedName[1]);
 					}
@@ -80,14 +80,14 @@ struct BakMan{
 		// get latest
 		uinteger minNameLength = fName.length+BACKUP_EXTENSION.length+2; // fName.length+".X"+extension
 		// the date modified of the latest backup
-		string latestName = files.length > 0 ? files[0] : "";
+		string latestName;
 		uinteger latestCount = 0;
 		foreach(bakFile; files){
 			string[3] processedName = readBackupFilename(bakFile);
 			if (processedName[0] == fName && processedName[2] == BACKUP_EXTENSION){
 				if (processedName[1].isNum){
 					// ok, this is a backup
-					if (to!uinteger(processedName[1]) > latestCount){
+					if (to!uinteger(processedName[1]) >= latestCount){
 						latestName = bakFile;
 						latestCount = to!uinteger(processedName[1]);
 					}
