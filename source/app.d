@@ -74,9 +74,11 @@ Run without any command to start make backup of all added files/dirs\n"
 		// load the conf file
 		ConfigFile conf;
 		conf.openConfig(expandTilde(CONF_PATH));
+		writeln ("Total Files to make backup for: ", conf.filePaths.length);
 		// execute start command
 		if (conf.backupStartCommand != ""){
-			executeShell(conf.backupStartCommand);
+			writeln ("Executing pre-makeBackup shell command:");
+			writeln ("Command returned: ",executeShell(conf.backupStartCommand).output);
 		}
 		// check if any files have been modified, then make backup
 		foreach (file; conf.filePaths){
@@ -84,16 +86,25 @@ Run without any command to start make backup of all added files/dirs\n"
 			SysTime backupDate = BakMan.lastBackupDate(file);
 			// now see if modified, then back it up
 			if (BakMan.hasModified(file, backupDate)){
-				if (BakMan.makeBackup(file)){
+				writeln (file, " has been modified, making new backup");
+				if (!BakMan.makeBackup(file)){
+					writeln ("Backup failed");
 					if (conf.backupFailCommand != ""){
-						executeShell(conf.backupFailCommand);
+						writeln ("Executing backup-fail shell command:");
+						writeln ("Command returned: ", executeShell(conf.backupFailCommand).output);
 					}
+				}else{
+					writeln ("Backup successful");
 				}
+			}else{
+				writeln (file, " not modified since last backup, skipping");
 			}
 		}
+		writeln ("Backup finished");
 		// execute backup-end-command
 		if (conf.backupFinishCommand != ""){
-			executeShell(conf.backupFinishCommand);
+			writeln ("Executing backup-finish shell command:");
+			writeln ("Command returned: ", executeShell(conf.backupFinishCommand).output);
 		}
 	}
 }
