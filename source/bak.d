@@ -101,7 +101,7 @@ struct BakMan{
 	static bool hasModified(string filePath, SysTime backupDate){
 		// now check if any file in that dir, or if it is a file, then if it's been modified after backup, then make another
 		if (filePath.isDir){
-			string path = filePath.dirName~'/';
+			string path = filePath~'/';
 			// recursion for all the files
 			string[] dirFiles = listdir(filePath);
 			foreach (file; dirFiles){
