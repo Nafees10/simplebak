@@ -28,7 +28,7 @@ struct BakMan{
 		// read the count
 		foreach_reverse(i, c; backupFile){
 			if (c == '.'){
-				r[1] = backupFile[c+1 .. backupFile.length];
+				r[1] = backupFile[i+1 .. backupFile.length];
 				break;
 			}
 		}
@@ -41,6 +41,9 @@ struct BakMan{
 	}
 	/// returns the date the last backup was done
 	static SysTime lastBackupDate(string filePath){
+		if (!exists(filePath.dirName~"/backups")){
+			return SysTime();
+		}
 		string backupDir = filePath.dirName~"/backups";
 		string fName = baseName(filePath);
 		string[] files = listdir(backupDir~'/');
@@ -67,6 +70,9 @@ struct BakMan{
 
 	/// returns the relative file path of the latest backups
 	static string latestBackup(string filePath){
+		if (!exists(filePath.dirName~"/backups")){
+			return "0.0"~BACKUP_EXTENSION;
+		}
 		string backupDir = filePath.dirName~"/backups";
 		string fName = baseName(filePath);
 		string[] files = listdir(backupDir~'/');
@@ -116,7 +122,7 @@ struct BakMan{
 	/// 
 	/// returns true on success, false on failure.
 	static bool makeBackup(string filePath){
-		import std.process;
+		import std.process, std.stdio;
 		// get the filename of the new backup file
 		string bakFilename = latestBackup(filePath);
 		// add one to the count of the latest backup, or make new name if none exists
@@ -126,13 +132,19 @@ struct BakMan{
 			string[3] processedName = readBackupFilename(bakFilename);
 			processedName[1] = to!string(to!uinteger(processedName[1])+1);
 		}
+		// make the dir if it doesnt exist
+		if (!exists(filePath.dirName)){
+			mkdirRecurse(filePath.dirName);
+		}
 		// now to make the backup
-		auto result = executeShell("tar -cf 'backups/"~bakFilename~"' '"~filePath~"'");
+		auto result = executeShell("tar -cf '"~filePath~"'" '"~filePath.dirName~"/backups/"~bakFilename~"');
 		// check if successful
 		if (result.status == 0){
 			// successful
 			return true;
 		}
+		// log it
+		writeln ("tar -cf returned: ",result.output);
 		return false;
 	}
 }
@@ -202,24 +214,29 @@ struct ConfigFile{
 	/// reads config from a file
 	void openConfig(string file){
 		import std.variant;
-		Tag rootTag = parseFile(file);
-		// read values now
-		// first, read filepaths
-		Value[] fileTagVals = rootTag.getTagValues("file");
-		storedFilePaths.length = fileTagVals.length;
-		foreach (i, val; fileTagVals){
-			storedFilePaths[i] = *(val.peek!(string));
+		if (exists(file)){
+			Tag rootTag = parseFile(file);
+			// read values now
+			// first, read filepaths
+			Value[] fileTagVals = rootTag.getTagValues("file");
+			storedFilePaths.length = fileTagVals.length;
+			foreach (i, val; fileTagVals){
+				storedFilePaths[i] = *(val.peek!(string));
+			}
+			// now for overWriteExisting
+			storedOverwriteExisting = rootTag.getTagValue("overwriteExisting", true);
+			// and backupStartCommand
+			storedBackupStartCommand = rootTag.getTagValue("backupStartCommand", "");
+			// backupFinishCommand
+			storedBackupFinishCommand = rootTag.getTagValue("backupFinishCommand", "");
+			// backupFailCommand
+			storedBackupFailCommand = rootTag.getTagValue("backupFailCommand", "");
+			changed = false;
+		}else{
+			// file didnt exist, to make it, set changed=true
+			changed = true;
 		}
-		// now for overWriteExisting
-		storedOverwriteExisting = rootTag.getTagValue("overwriteExisting", true);
-		// and backupStartCommand
-		storedBackupStartCommand = rootTag.getTagValue("backupStartCommand", "");
-		// backupFinishCommand
-		storedBackupFinishCommand = rootTag.getTagValue("backupFinishCommand", "");
-		// backupFailCommand
-		storedBackupFailCommand = rootTag.getTagValue("backupFailCommand", "");
 		// done!
-		changed = false;
 		filename = file;
 	}
 	/// saves the config file back to disk, whether changed or not
@@ -228,7 +245,7 @@ struct ConfigFile{
 	void saveConfig(string file){
 		// prepare the tags
 		Tag[] tags;
-		tags.length = filePaths.length+3;
+		tags.length = filePaths.length+4;
 		Tag rootTag = new Tag();
 		foreach (i, filePath; filePaths){
 			tags[i] = new Tag(rootTag,"","file",[Value(filePath)]);
@@ -240,8 +257,12 @@ struct ConfigFile{
 			new Tag(rootTag,"","backupFailCommand",[Value(backupFailCommand)])
 		];
 		// add them all to the rootTag
-		foreach (tag; tags){
+		/*foreach (tag; tags){
 			rootTag.add(tag);
+		}*/
+		// if dir doesnt exist, make it
+		if (!dirName(file).exists){
+			mkdirRecurse(file.dirName);
 		}
 		write(file, rootTag.toSDLDocument);
 		// destroy all the tags

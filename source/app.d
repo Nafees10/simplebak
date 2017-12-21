@@ -106,5 +106,7 @@ Run without any command to start make backup of all added files/dirs\n"
 			writeln ("Executing backup-finish shell command:");
 			writeln ("Command returned: ", executeShell(conf.backupFinishCommand).output);
 		}
+		// save the conf file
+		conf.saveConfig();
 	}
 }
