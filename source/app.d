@@ -56,7 +56,7 @@ Run without any command to start make backup of all added files/dirs\n"
 				// check if specified
 				if (args.length < 3){
 					writeln ("No file/dir specifed to remove from future backups");
-				}else if (!conf.filePaths.indexOf(absolutePath(args[2]))){
+				}else if (conf.filePaths.indexOf(absolutePath(args[2])) < 0){
 					writeln (baseName(args[2])~" was never added, cannot be removed");
 				}else{
 					// remove it

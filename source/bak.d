@@ -71,7 +71,7 @@ struct BakMan{
 	/// returns the relative file path of the latest backups
 	static string latestBackup(string filePath){
 		if (!exists(filePath.dirName~"/backups")){
-			return "0.0"~BACKUP_EXTENSION;
+			return "";
 		}
 		string backupDir = filePath.dirName~"/backups";
 		string fName = baseName(filePath);
@@ -80,7 +80,7 @@ struct BakMan{
 		// get latest
 		uinteger minNameLength = fName.length+BACKUP_EXTENSION.length+2; // fName.length+".X"+extension
 		// the date modified of the latest backup
-		string latestName;
+		string latestName = files.length > 0 ? files[0] : "";
 		uinteger latestCount = 0;
 		foreach(bakFile; files){
 			string[3] processedName = readBackupFilename(bakFile);
@@ -131,13 +131,15 @@ struct BakMan{
 		}else{
 			string[3] processedName = readBackupFilename(bakFilename);
 			processedName[1] = to!string(to!uinteger(processedName[1])+1);
+			bakFilename = processedName[0] ~ '.' ~ processedName[1] ~ BACKUP_EXTENSION;
 		}
 		// make the dir if it doesnt exist
-		if (!exists(filePath.dirName)){
-			mkdirRecurse(filePath.dirName);
+		if (!exists(filePath.dirName~"/backups")){
+			mkdirRecurse(filePath.dirName~"/backups");
 		}
 		// now to make the backup
-		auto result = executeShell("tar -cf '"~filePath~"'" '"~filePath.dirName~"/backups/"~bakFilename~"');
+		writeln ("Making backup using:\n","tar -cf '"~filePath.dirName~"/backups/"~bakFilename~"' '"~filePath~"'");
+		auto result = executeShell("tar -cf '"~filePath.dirName~"/backups/"~bakFilename~"' '"~filePath~"'");
 		// check if successful
 		if (result.status == 0){
 			// successful
@@ -245,12 +247,15 @@ struct ConfigFile{
 	void saveConfig(string file){
 		// prepare the tags
 		Tag[] tags;
-		tags.length = filePaths.length+4;
+		tags.length = 5;
 		Tag rootTag = new Tag();
-		foreach (i, filePath; filePaths){
-			tags[i] = new Tag(rootTag,"","file",[Value(filePath)]);
+		Value[] fileVals;
+		fileVals.length = filePaths.length;
+		foreach (i, path; filePaths){
+			fileVals[i] = Value(path);
 		}
-		tags[filePaths.length .. tags.length] = [
+		tags = [
+			new Tag(rootTag,"","file", fileVals),
 			new Tag(rootTag,"","overwriteExisting",[Value(overwriteExisitng)]),
 			new Tag(rootTag,"","backupStartCommand",[Value(backupStartCommand)]),
 			new Tag(rootTag,"","backupFinishCommand",[Value(backupFinishCommand)]),
