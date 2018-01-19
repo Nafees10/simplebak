@@ -23,7 +23,7 @@ To make simplebak make backups of a file or directory, use this:
 `simplebak add /file/to/make/backup/of`
 #### Removing files from future backups
 To stop simplebak from making any more backups of a file/dir, use this:  
-`simplebak add /file/to/no/more/make/backup/of`
+`simplebak remove /file/to/no/more/make/backup/of`
 #### List files/dirs to make backup of
 To get list of all files/directories of which backups will be made, use this:  
 `simplebak list`
