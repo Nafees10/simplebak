@@ -17,7 +17,6 @@ Commands:
 	add 	- adds a new file/dir for backup.
 	remove 	- removes a file/dir from list of files to make backup of.
 	backup	- makes backup of only a specified file, if needed
-	restore	- restores the last, or n-th last backup for a file, n is arg
 	help	- displays this message
 	version	- displays the version
 	list	- lists all files that are added
