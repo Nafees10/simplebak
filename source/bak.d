@@ -2,6 +2,7 @@
 
 import sdlang;
 import utils.misc;
+import utils.lists;
 import std.file;
 import std.path;
 import std.datetime;
@@ -95,27 +96,6 @@ struct BakMan{
 			}
 		}
 		return latestName;
-	}
-
-	/// returns true if a file/any-file-in-a-dir was modified after a data/time
-	static bool hasModified(string filePath, SysTime backupDate){
-		// now check if any file in that dir, or if it is a file, then if it's been modified after backup, then make another
-		if (filePath.isDir){
-			string path = filePath~'/';
-			// recursion for all the files
-			string[] dirFiles = listdir(filePath);
-			foreach (file; dirFiles){
-				if (hasModified(path~file, backupDate)){
-					return true;
-				}
-			}
-			return false;
-		}else{
-			if (timeLastModified(filePath) > backupDate){
-				return true;
-			}
-			return false;
-		}
 	}
 
 	/// makes backup of a file/dir
@@ -284,17 +264,61 @@ struct ConfigFile{
 	}
 }
 
-/// returns array containing file names in a dir
+/// returns: array containing file paths that were modified after given date
 /// 
-/// taken from: https://dlang.org/library/std/file/dir_entries.html
-string[] listdir(string pathname){
+/// `filePath` is the path to the dir/file to check
+/// `lastTime` is the time to check against
+/// `exclude` is a lit of files/dirs to not to include in the check
+string[] filesModified(string filePath, SysTime lastTime, string[] exclude = []){
 	import std.algorithm;
 	import std.array;
-	import std.file;
-	import std.path;
 	
+	// make sure the filePath is not in exclude
+	if (exclude.indexOf(filePath) >= 0){
+		return [];
+	}
+	if (filePath.isDir){
+		LinkedList!string modifiedList = new LinkedList!string;
+		FIFOStack!string filesToCheck = new FIFOStack!string;
+		filesToCheck.push(listdir(filePath));
+		// go through the stack
+		while (filesToCheck.count > 0){
+			string file = filesToCheck.pop;
+			if (!isAbsolute(file)){
+				file = absolutePath(filePath~'/'~file);
+			}
+			if (exclude.indexOf(file) >= 0){
+				continue;
+			}
+			// check if it's a dir, case yes, push it's files too
+			if (file.isDir){
+				filesToCheck.push(listdir(file));
+			}else if (file.isFile){
+				// is file, check if it was modified
+				if (timeLastModified(file) > lastTime){
+					modifiedList.append(absolutePath(file));
+				}
+			}
+		}
+		string[] r = modifiedList.toArray;
+		.destroy (modifiedList);
+		.destroy (filesToCheck);
+		return r;
+	}else{
+		if (timeLastModified(filePath) > lastTime){
+			return [filePath];
+		}
+	}
+	return [];
+}
+
+/// returns an array containing files/dirs in a dir (pathname)
+private string[] listdir(string pathname){
+	import std.algorithm;
+	import std.array;
+
 	return std.file.dirEntries(pathname, SpanMode.shallow)
-		.filter!(a => a.isFile)
-			.map!(a => std.path.baseName(a.name))
-			.array;
+		.filter!(a => (a.isFile || a.isDir))
+		.map!(a => std.path.absolutePath(a.name))
+		.array;
 }
