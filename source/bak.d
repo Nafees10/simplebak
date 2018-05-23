@@ -149,16 +149,17 @@ struct ConfigFile{
 		storedFilePaths = newVal.dup;
 		return newVal;
 	}
-	/// stores whether existing files will be overwritten when writing backups
-	private bool storedOverwriteExisting = true;
-	/// true if existing files will be overwritten when writing backups
-	@property bool overwriteExisitng(){
-		return storedOverwriteExisting;
+	/// stores the file paths which are to be excluded from backups
+	private string[] storedExclude;
+	/// returns: array of filepaths to exclude in backups
+	@property string[] excludeList(){
+		return storedExclude.dup;
 	}
-	/// true if existing files will be overwritten when writing backups
-	@property bool overwriteExisitng(bool newVal){
+	/// array of filepaths to exclude in backups
+	@property string[] excludeList(string[] newList){
 		changed = true;
-		return storedOverwriteExisting = newVal;
+		storedExclude = newList.dup;
+		return newList;
 	}
 	/// stores a shell command to execute before starting to make backup
 	private string storedBackupStartCommand;
@@ -205,8 +206,12 @@ struct ConfigFile{
 			foreach (i, val; fileTagVals){
 				storedFilePaths[i] = *(val.peek!(string));
 			}
-			// now for overWriteExisting
-			storedOverwriteExisting = rootTag.getTagValue("overwriteExisting", true);
+			// excludeList
+			fileTagVals = rootTag.getTagValues("exclude");
+			storedExclude.length = fileTagVals.length;
+			foreach (i, val; fileTagVals){
+				storedExclude[i] = *(val.peek!string);
+			}
 			// and backupStartCommand
 			storedBackupStartCommand = rootTag.getTagValue("backupStartCommand", "");
 			// backupFinishCommand
@@ -230,21 +235,22 @@ struct ConfigFile{
 		tags.length = 5;
 		Tag rootTag = new Tag();
 		Value[] fileVals;
-		fileVals.length = filePaths.length;
-		foreach (i, path; filePaths){
+		fileVals.length = storedFilePaths.length;
+		foreach (i, path; storedFilePaths){
 			fileVals[i] = Value(path);
+		}
+		Value[] excludeVals;
+		excludeVals.length = storedExclude.length;
+		foreach (i, path; storedExclude){
+			excludeVals[i] = Value(path);
 		}
 		tags = [
 			new Tag(rootTag,"","file", fileVals),
-			new Tag(rootTag,"","overwriteExisting",[Value(overwriteExisitng)]),
+			new Tag(rootTag,"","exclude", excludeVals),
 			new Tag(rootTag,"","backupStartCommand",[Value(backupStartCommand)]),
 			new Tag(rootTag,"","backupFinishCommand",[Value(backupFinishCommand)]),
 			new Tag(rootTag,"","backupFailCommand",[Value(backupFailCommand)])
 		];
-		// add them all to the rootTag
-		/*foreach (tag; tags){
-			rootTag.add(tag);
-		}*/
 		// if dir doesnt exist, make it
 		if (!dirName(file).exists){
 			mkdirRecurse(file.dirName);
