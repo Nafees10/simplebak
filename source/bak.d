@@ -131,7 +131,9 @@ struct BakMan{
 	}
 }
 
-/// struct to read config from SDL file
+/// represents the simplebak.sdl config file
+/// 
+/// makes reading and writing to it easier
 struct ConfigFile{
 	/// stores whether the file has been changed in memory after loading
 	private bool changed=false;
@@ -161,63 +163,39 @@ struct ConfigFile{
 		storedExclude = newList.dup;
 		return newList;
 	}
-	/// stores a shell command to execute before starting to make backup
-	private string storedBackupStartCommand;
-	/// shell command to execute before backup starts
-	@property string backupStartCommand(){
-		return storedBackupStartCommand;
-	}
-	/// shell command to execute before backup starts
-	@property string backupStartCommand(string newVal){
-		changed = true;
-		return storedBackupStartCommand = newVal;
-	}
-	/// stores a shell command to execute after backing up has finished
-	private string storedBackupFinishCommand;
-	/// shell command to execute after backup's done
-	@property string backupFinishCommand(){
-		return storedBackupFinishCommand;
-	}
-	/// shell command to execute after backup's done
-	@property string backupFinishCommand(string newVal){
-		changed = true;
-		return storedBackupFinishCommand = newVal;
-	}
-	/// stores the command to execute if backup fails
-	private string storedBackupFailCommand;
-	/// shell command to execute if backup fails
-	@property string backupFailCommand(){
-		return storedBackupFailCommand;
-	}
-	/// shell command to execute if backup fails
-	@property string backupFailCommand(string newVal){
-		changed = true;
-		return storedBackupFailCommand  = newVal;
-	}
 	/// reads config from a file
 	void openConfig(string file){
 		import std.variant;
 		if (exists(file)){
 			Tag rootTag = parseFile(file);
 			// read values now
-			// first, read filepaths
-			Value[] fileTagVals = rootTag.getTagValues("file");
-			storedFilePaths.length = fileTagVals.length;
-			foreach (i, val; fileTagVals){
-				storedFilePaths[i] = *(val.peek!(string));
+			auto filesRange = rootTag.getTag("fileList").tags;
+			storedFilePaths.length = filesRange.length;
+			uinteger i = 0;
+			while (!filesRange.empty){
+				Tag fileTag = filesRange.front;
+				filesRange.popFront;
+				if (fileTag.getFullName.toString != "file"){
+					storedFilePaths.length --;
+				}else{
+					storedFilePaths[i] = fileTag.getValue!string;
+				}
+				i ++;
 			}
 			// excludeList
-			fileTagVals = rootTag.getTagValues("exclude");
-			storedExclude.length = fileTagVals.length;
-			foreach (i, val; fileTagVals){
-				storedExclude[i] = *(val.peek!string);
+			filesRange = rootTag.getTag("excludeList").tags;
+			storedExclude.length = filesRange.length;
+			i = 0;
+			while (!filesRange.empty){
+				Tag fileTag = filesRange.front;
+				filesRange.popFront;
+				if (fileTag.getFullName.toString != "exclude"){
+					storedExclude.length --;
+				}else{
+					storedExclude[i] = fileTag.getValue!string;
+				}
+				i ++;
 			}
-			// and backupStartCommand
-			storedBackupStartCommand = rootTag.getTagValue("backupStartCommand", "");
-			// backupFinishCommand
-			storedBackupFinishCommand = rootTag.getTagValue("backupFinishCommand", "");
-			// backupFailCommand
-			storedBackupFailCommand = rootTag.getTagValue("backupFailCommand", "");
 			changed = false;
 		}else{
 			// file didnt exist, to make it, set changed=true
@@ -231,26 +209,19 @@ struct ConfigFile{
 	/// `file` is the name of file to write to
 	void saveConfig(string file){
 		// prepare the tags
-		Tag[] tags;
-		tags.length = 5;
-		Tag rootTag = new Tag();
-		Value[] fileVals;
-		fileVals.length = storedFilePaths.length;
+		Tag rootTag = new Tag(),
+			fileListTag = new Tag(rootTag,"","fileList"),
+			excludeListTag = new Tag(rootTag,"","excludeList");
+		Tag[] fileTags, excludeTags;
+		
+		fileTags.length = storedFilePaths.length;
 		foreach (i, path; storedFilePaths){
-			fileVals[i] = Value(path);
+			fileTags[i] = new Tag(fileListTag, "", "file", [Value(path)]);
 		}
-		Value[] excludeVals;
-		excludeVals.length = storedExclude.length;
+		excludeTags.length = storedExclude.length;
 		foreach (i, path; storedExclude){
-			excludeVals[i] = Value(path);
+			excludeTags[i] = new Tag(excludeListTag, "", "exclude", [Value(path)]);
 		}
-		tags = [
-			new Tag(rootTag,"","file", fileVals),
-			new Tag(rootTag,"","exclude", excludeVals),
-			new Tag(rootTag,"","backupStartCommand",[Value(backupStartCommand)]),
-			new Tag(rootTag,"","backupFinishCommand",[Value(backupFinishCommand)]),
-			new Tag(rootTag,"","backupFailCommand",[Value(backupFailCommand)])
-		];
 		// if dir doesnt exist, make it
 		if (!dirName(file).exists){
 			mkdirRecurse(file.dirName);
@@ -258,7 +229,7 @@ struct ConfigFile{
 		write(file, rootTag.toSDLDocument);
 		// destroy all the tags
 		.destroy(rootTag);
-		foreach (tag; tags){
+		foreach (tag; [rootTag, fileListTag, excludeListTag]~fileTags~excludeTags){
 			.destroy(tag);
 		}
 	}
