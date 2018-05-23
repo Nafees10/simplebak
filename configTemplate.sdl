@@ -1,0 +1,7 @@
+fileList{
+	file "/file/to/make/backup/of.txt"
+	file "/dir/to/make/backup/of"
+}
+excludeList{
+	exclude "/dir/to/make/backup/of/not.txt"
+}
