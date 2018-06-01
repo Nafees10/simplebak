@@ -55,7 +55,7 @@ struct ConfigFile{
 		if (exists(file)){
 			Tag rootTag = parseFile(file);
 			// read the backup dir
-			storedBackupDir = rootTag.getTagValue!string("backupDir","~/backups");
+			storedBackupDir = rootTag.getTagValue!string("backupDir",expandTilde ("~/backups"));
 			// read values now
 			auto filesRange = rootTag.getTag("fileList").tags;
 			storedFilePaths.length = filesRange.length;
@@ -88,6 +88,7 @@ struct ConfigFile{
 		}else{
 			// file didnt exist, to make it, set changed=true
 			changed = true;
+			storedBackupDir = expandTilde ("~/backups");
 		}
 		// done!
 		filename = file;
