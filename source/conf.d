@@ -13,7 +13,7 @@ import std.datetime;
 /// represents the conf.sdl config file
 /// 
 /// makes reading and writing to it easier
-struct ConfigFile{
+class ConfigFile{
 	/// stores whether the file has been changed in memory after loading
 	private bool changed=false;
 	/// stores filename of currently open file
@@ -145,7 +145,7 @@ struct ConfigFile{
 /// 2. which files were modified (relative to the previous backup)
 /// 3. which files were deleted (relative to the previous backup)
 /// 4. which files were created (relative to the previous backup)
-struct BakInfo{
+class BakInfo{
 	/// stores whether the file has been modified after being loaded
 	private bool changed = false;
 	/// stores filename of currently open file

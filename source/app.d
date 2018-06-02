@@ -45,7 +45,7 @@ Commands:
 			writeln (VERSION);
 		}else{
 			// load the conf file
-			ConfigFile conf;
+			ConfigFile conf = new ConfigFile();
 			conf.openConfig(expandTilde(CONF_PATH));
 			if (args[1] == "add"){
 				// check if is valid path
@@ -96,6 +96,7 @@ Commands:
 			}
 			// save the conf file
 			conf.saveConfig();
+			.destroy (conf);
 		}
 	}
 	exit(exitCode);
