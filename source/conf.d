@@ -145,13 +145,30 @@ class ConfigFile{
 /// 2. which files were modified (relative to the previous backup)
 /// 3. which files were deleted (relative to the previous backup)
 /// 4. which files were created (relative to the previous backup)
+/// 5. which files existed at that time
 class BakInfo{
+private:
 	/// stores whether the file has been modified after being loaded
-	private bool changed = false;
+	bool changed;
 	/// stores filename of currently open file
-	private string filename;
+	string filename;
 	/// stores the time the backup was made
-	private SysTime _backupTime;
+	SysTime _backupTime;
+	/// stores list of files which were modified
+	string[] _modifiedFiles;
+	/// stores list of files which were deleted
+	string[] _deletedFiles;
+	/// stores list of files which were created
+	string[] _createdFiles;
+	/// stores list of files that existed
+	string[] _existingFiles;
+public:
+	/// constructor
+	this (){
+		changed = false;
+		// by default, backupTime is current time
+		_backupTime = Clock.currTime;
+	}
 	/// time backup was made
 	@property SysTime backupTime(){
 		return _backupTime;
@@ -162,8 +179,7 @@ class BakInfo{
 		_backupTime = newTime;
 		return newTime;
 	}
-	/// stores list of files which were modified
-	private string[] _modifiedFiles;
+	
 	/// array of files that were modified
 	@property string[] modifiedFiles(){
 		return _modifiedFiles.dup;
@@ -175,8 +191,6 @@ class BakInfo{
 		return newArray;
 	}
 	
-	/// stores list of files which were deleted
-	private string[] _deletedFiles;
 	/// array of files that were deleted
 	@property string[] deletedFiles(){
 		return _deletedFiles.dup;
@@ -187,9 +201,7 @@ class BakInfo{
 		changed = true;
 		return newArray;
 	}
-
-	/// stores list of files which were created
-	private string[] _createdFiles;
+	
 	/// array of files that were created
 	@property string[] createdFiles(){
 		return _createdFiles.dup;
@@ -200,6 +212,18 @@ class BakInfo{
 		changed = true;
 		return newArray;
 	}
+
+	/// array of files that existed at time of backup
+	@property string[] existingFiles(){
+		return _existingFiles.dup;
+	}
+	/// array of files that existed at time of backup
+	@property string[] existingFiles(string[] newArray){
+		_existingFiles = newArray.dup;
+		changed = true;
+		return newArray;
+	}
+	
 	/// opens a SDL file and reads it into this struct
 	/// 
 	/// Throws: Exception if file doesnt exist
@@ -213,10 +237,11 @@ class BakInfo{
 			auto tagRanges = [
 				rootTag.getTag("modified").tags,
 				rootTag.getTag("deleted").tags,
-				rootTag.getTag("created").tags
+				rootTag.getTag("created").tags,
+				rootTag.getTag("existing").tags
 				];
 			/// stores the read-ed string from the above ranges
-			string[][3] readValues;
+			string[][4] readValues;
 			foreach (index, tagRange; tagRanges){
 				readValues[index].length = tagRange.length;
 				uinteger i = 0;
@@ -236,6 +261,7 @@ class BakInfo{
 			_modifiedFiles = readValues[0];
 			_deletedFiles = readValues[1];
 			_createdFiles = readValues[2];
+			_existingFiles = readValues[3];
 			
 			changed = false;
 			filename = file;
@@ -252,12 +278,13 @@ class BakInfo{
 			modifiedTag = new Tag(rootTag, "", "modified"),
 			deletedTag = new Tag(rootTag, "", "deleted"),
 			createdTag = new Tag(rootTag, "", "created"),
+			existingTag = new Tag(rootTag, "", "existing"),
 			backupTimeTag = new Tag(rootTag, "", "backupTime", [Value(backupTime.toISOExtString)]);
 		/// the "list" tags, i.e, inside the modified, deleted, and created. [0] is modified, [1] is deleted, [2] is created
-		Tag[][3] fileListTags;
-		foreach (index, files; [_modifiedFiles, _deletedFiles, _createdFiles]){
+		Tag[][4] fileListTags;
+		foreach (index, files; [_modifiedFiles, _deletedFiles, _createdFiles, _existingFiles]){
 			fileListTags[index].length = files.length;
-			Tag tagToPutIn = index == 0 ? modifiedTag : (index == 1 ? deletedTag : createdTag);
+			Tag tagToPutIn = index == 0 ? modifiedTag : (index == 1 ? deletedTag : (index == 2 ? createdTag : existingTag));
 			foreach (i, filePath; files){
 				fileListTags[index][i] = new Tag(tagToPutIn, "", "file", [Value(filePath)]);
 			}
@@ -268,7 +295,12 @@ class BakInfo{
 		}
 		write(file, rootTag.toSDLDocument);
 		// destroy all tags
-		foreach (tag; [rootTag, modifiedTag, deletedTag, createdTag, backupTimeTag]~fileListTags[0]~fileListTags[1]~fileListTags[2]){
+		foreach (tags; fileListTags){
+			foreach (tag; tags){
+				.destroy(tag);
+			}
+		}
+		foreach (tag; [rootTag, modifiedTag, deletedTag, createdTag, existingTag, backupTimeTag]){
 			.destroy(tag);
 		}
 		changed = false;
