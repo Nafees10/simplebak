@@ -1,10 +1,11 @@
+
 {
 	"name": "simplebak",
 	"authors": [
 		"Nafees"
 	],
 	"dependencies": {
-		"utils": "~>0.2.0",
+		"utils": "~>0.2.1",
 		"sdlang-d": "~>0.10.1",
 	},
 	"description": "A simple backup program",
