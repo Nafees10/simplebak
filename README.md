@@ -1,6 +1,6 @@
 # simplebak
 A simple backup program, written in D Language.  
-_simplebak has only been written ofr and tested on GNU/Linux, and will probably not work with Windows_
+_simplebak has only been written for and tested on GNU/Linux, and will probably not work with Windows_
 
 ---
 
@@ -16,7 +16,7 @@ simplebak reqiures some programs to be pre-installed on your system, which are:
 1. install all the prerequisites, listed above
 2. download a stable release from [Releases](https://github.com/Nafees10/simplebak/releases)
 3. extract the archive, use `tar -xf` or anything else
-4. `cd` into the extracted directory, and run `dub --build=release`
+4. `cd` into the extracted directory, and run `dub build --build=release`
 5. copy `simplebak` executable file to `/usr/local/bin/simplebak` or somewhere where the shell can find it
 
 ### Usage
