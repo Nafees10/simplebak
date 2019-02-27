@@ -6,7 +6,7 @@
 	],
 	"dependencies": {
 		"utils": "~>0.2.1",
-		"sdlang-d": "~>0.10.1",
+		"sdlang-d": "~>0.10.5"
 	},
 	"description": "A simple backup program",
 	"copyright": "Copyright © 2017, Nafees",

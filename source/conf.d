@@ -19,39 +19,39 @@ class ConfigFile{
 	/// stores filename of currently open file
 	private string filename;
 	/// stores the file paths which have to be included in backups
-	private string[] storedFilePaths;
+	private string[] _filePaths;
 	/// array of files to include in backups
 	@property string[] filePaths(){
-		return storedFilePaths.dup;
+		return _filePaths.dup;
 	}
 	/// array of files to include in backups
 	@property string[] filePaths(string[] newVal){
 		changed = true;
-		storedFilePaths = newVal.dup;
+		_filePaths = newVal.dup;
 		return newVal;
 	}
 	/// stores the file paths which are to be excluded from backups
-	private string[] storedExclude;
+	private string[] _exclude;
 	/// returns: array of filepaths to exclude in backups
 	@property string[] excludeList(){
-		return storedExclude.dup;
+		return _exclude.dup;
 	}
 	/// array of filepaths to exclude in backups
 	@property string[] excludeList(string[] newList){
 		changed = true;
-		storedExclude = newList.dup;
+		_exclude = newList.dup;
 		return newList;
 	}
 	/// stores the dir that will store the backups
-	private string storedBackupDir;
+	private string _backupDir;
 	/// the dir storing the backups
 	@property string backupDir(){
-		return storedBackupDir;
+		return _backupDir;
 	}
 	/// the dir storing the backups
 	@property string backupDir(string newDir){
 		changed = true;
-		storedBackupDir = newDir;
+		_backupDir = newDir;
 		return newDir;
 	}
 	/// reads config from a file
@@ -59,34 +59,34 @@ class ConfigFile{
 		if (exists(file)){
 			Tag rootTag = parseFile(file);
 			// read the backup dir
-			storedBackupDir = rootTag.getTagValue!string("backupDir",expandTilde ("~/backups"));
+			_backupDir = rootTag.getTagValue!string("backupDir",expandTilde ("~/backups"));
 			// read values now
 			auto filesRange = rootTag.getTag("fileList").tags;
-			storedFilePaths.length = filesRange.length;
+			_filePaths.length = filesRange.length;
 			uinteger i = 0;
 			while (!filesRange.empty){
 				Tag fileTag = filesRange.front;
 				filesRange.popFront;
 				if (fileTag.getFullName.toString != "file"){
-					storedFilePaths.length --;
+					_filePaths.length --;
 					continue;
 				}else{
-					storedFilePaths[i] = fileTag.getValue!string;
+					_filePaths[i] = fileTag.getValue!string;
 				}
 				i ++;
 			}
 			// excludeList
 			filesRange = rootTag.getTag("excludeList").tags;
-			storedExclude.length = filesRange.length;
+			_exclude.length = filesRange.length;
 			i = 0;
 			while (!filesRange.empty){
 				Tag fileTag = filesRange.front;
 				filesRange.popFront;
 				if (fileTag.getFullName.toString != "exclude"){
-					storedExclude.length --;
+					_exclude.length --;
 					continue;
 				}else{
-					storedExclude[i] = fileTag.getValue!string;
+					_exclude[i] = fileTag.getValue!string;
 				}
 				i ++;
 			}
@@ -94,7 +94,7 @@ class ConfigFile{
 		}else{
 			// file didnt exist, to make it, set changed=true
 			changed = true;
-			storedBackupDir = expandTilde ("~/backups");
+			_backupDir = expandTilde ("~/backups");
 		}
 		// done!
 		filename = file;
@@ -107,15 +107,15 @@ class ConfigFile{
 		Tag rootTag = new Tag(),
 			fileListTag = new Tag(rootTag,"","fileList"),
 			excludeListTag = new Tag(rootTag,"","excludeList"),
-			backupDirTag = new Tag(rootTag, "", "backupDir", [Value (storedBackupDir)]);
+			backupDirTag = new Tag(rootTag, "", "backupDir", [Value (_backupDir)]);
 		Tag[] fileTags, excludeTags;
 		
-		fileTags.length = storedFilePaths.length;
-		foreach (i, path; storedFilePaths){
+		fileTags.length = _filePaths.length;
+		foreach (i, path; _filePaths){
 			fileTags[i] = new Tag(fileListTag, "", "file", [Value(path)]);
 		}
-		excludeTags.length = storedExclude.length;
-		foreach (i, path; storedExclude){
+		excludeTags.length = _exclude.length;
+		foreach (i, path; _exclude){
 			excludeTags[i] = new Tag(excludeListTag, "", "exclude", [Value(path)]);
 		}
 		// if dir doesnt exist, make it
